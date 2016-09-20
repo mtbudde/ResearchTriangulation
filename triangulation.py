@@ -5,14 +5,19 @@ import sensor_msgs.msg
 from math import *
 
 global THRESHOLD
-THRESHOLD = 29
+THRESHOLD = 31
 
 global scanData
+global scanData1
 
 global beaconX
 beaconX = [ 0, 0, 0 ]
 global beaconY
 beaconY = [ 0, .1, .2 ]
+global scanCount
+scanCount = 0
+global numberScans
+numberScans = 0
 
 def callback(data):
 	startAngle = data.angle_min
@@ -20,12 +25,30 @@ def callback(data):
 	angleInc = data.angle_increment
 	ranges = data.ranges
 	intensities = data.intensities
-	processScan( startAngle, endAngle, angleInc, ranges, intensities )
-	findBeacons( scanData )
-	calcPosition( beaconX, beaconY, beaconData )
-	calcAngle( )
+	global scanCount
+	global numberScans
+	if( scanCount == 0 ):
+		firstScan( startAngle, endAngle, angleInc, ranges, intensities )
+	if( scanCount == 1 ):
+		processScan( startAngle, endAngle, angleInc, ranges, intensities, scanData1 )
+		findBeacons( scanData )
+		calcPosition( beaconX, beaconY, beaconData )
+		calcAngle( )
+		numberScans = numberScans + 1
+		print( numberScans )
+	scanCount = ( scanCount + 1 ) % 2
 
-def processScan( start, end, inc, ranges, intensities ):
+def firstScan( start, end, inc, ranges, intensities ):
+	global scanData1
+	scanData1 = []
+	scanData1.append( [] )
+	scanData1.append( [] )
+	for i in range( len( intensities ) ):
+		if intensities[i] > THRESHOLD:
+			scanData1[0].append( start + ( i * inc ) )
+			scanData1[1].append( ranges[i] )
+
+def processScan( start, end, inc, ranges, intensities, scanData1 ):
 	print( "PROCESS" )
 	global scanData
 	scanData = []
@@ -35,6 +58,17 @@ def processScan( start, end, inc, ranges, intensities ):
 		if intensities[i] > THRESHOLD:
 			scanData[0].append( start + ( i * inc ) )
 			scanData[1].append( ranges[i] )
+
+	k = 0
+	l = 0
+	while l < len( scanData[0] ) and k < len( scanData1[0] ):
+		if( scanData1[0][k] < scanData[0][l] ):
+			scanData[0].insert( l, scanData1[0][k] )
+			scanData[1].insert( l, scanData1[1][k] )
+			k = k + 1
+		else:
+			l = l + 1
+
 	print( scanData[0] )
 	print( scanData[1] )
 
@@ -56,7 +90,7 @@ def findBeacons( scanData ):
 				if( started == 1 ):
 					beaconEnd = i
 					started = 0
-					if( ( beaconEnd - beaconStart ) >= 5 ):
+					if( ( beaconEnd - beaconStart ) >= 10 ):
 						beaconData[0].append( scanData[0][ beaconStart + int( floor( ( beaconEnd - beaconStart ) / 2 ) ) ] )
 						beaconData[1].append( scanData[1][ beaconStart + int( floor( ( beaconEnd - beaconStart ) / 2 ) ) ] )
 						beaconsFound = beaconsFound + 1
