@@ -4,61 +4,80 @@ from std_msgs.msg import String
 import sensor_msgs.msg
 from math import *
 
+# Threshold for determining which data points correspond to beacons
 global THRESHOLD
-THRESHOLD = 31
+THRESHOLD = 18
 
+# These will later be initialized as 2D arrays
 global scanData
 global scanData1
 
+# Beacon positions
 global beaconX
 beaconX = [ 0, 0, 0 ]
 global beaconY
 beaconY = [ 0, .1, .2 ]
+
+# Used in ensuring two scans are used for processing
 global scanCount
 scanCount = 0
+
+# Number of scans obtained since the program was started
 global numberScans
 numberScans = 0
 
+# Callback function for a LiDAR scan
 def callback(data):
+	# Pull all data from the sensor message into local variables
 	startAngle = data.angle_min
 	endAngle = data.angle_max
 	angleInc = data.angle_increment
 	ranges = data.ranges
 	intensities = data.intensities
+
+	# Use these two global variables
 	global scanCount
 	global numberScans
+	# If there is only one scan available, store in memory
 	if( scanCount == 0 ):
 		firstScan( startAngle, endAngle, angleInc, ranges, intensities )
+	# If two scans have been obtained, combine them and attempt to find the position of the device
 	if( scanCount == 1 ):
 		processScan( startAngle, endAngle, angleInc, ranges, intensities, scanData1 )
-		findBeacons( scanData )
+		findBeacons( scanData, angleInc )
 		calcPosition( beaconX, beaconY, beaconData )
 		calcAngle( )
 		numberScans = numberScans + 1
 		print( numberScans )
-	scanCount = ( scanCount + 1 ) % 2
+	scanCount = ( scanCount + 1 ) % 2 # Roll the scan count around
 
+# Function to process the first scan - using two scans to get a suitable number of high-quality data points
 def firstScan( start, end, inc, ranges, intensities ):
+	# Create a global 2D array to store the first scan data
 	global scanData1
 	scanData1 = []
 	scanData1.append( [] )
 	scanData1.append( [] )
+	# Add all scan data to the global 2D array
 	for i in range( len( intensities ) ):
 		if intensities[i] > THRESHOLD:
 			scanData1[0].append( start + ( i * inc ) )
 			scanData1[1].append( ranges[i] )
 
+# Function to process both scans together
 def processScan( start, end, inc, ranges, intensities, scanData1 ):
-	print( "PROCESS" )
+	# Create a global 2D array to store both scans
 	global scanData
 	scanData = []
 	scanData.append( [] )
 	scanData.append( [] )
+	# Add the second scan in to the new array
 	for i in range( len( intensities ) ):
 		if intensities[i] > THRESHOLD:
 			scanData[0].append( start + ( i * inc ) )
 			scanData[1].append( ranges[i] )
 
+	# Insert the first scan into the master array point-by-point in the appropriate positions
 	k = 0
 	l = 0
 	while l < len( scanData[0] ) and k < len( scanData1[0] ):
@@ -69,37 +88,62 @@ def processScan( start, end, inc, ranges, intensities, scanData1 ):
 		else:
 			l = l + 1
 
+	# Print some output
 	print( scanData[0] )
 	print( scanData[1] )
 
-def findBeacons( scanData ):
+# Locate the beacons in the scan data
+# Looking for clumped together points in the data
+def findBeacons( scanData, inc ):
 	print( "BEACONS" )
 	beaconsFound = 0
 	started = 0
+
+	# Make a 2D array to contain distance and angles to each beacon
+	# beaconData[0] = ANGLES
+	# beaconData[1] = DISTANCES
 	global beaconData
 	beaconData = []
 	beaconData.append( [] )
 	beaconData.append( [] )
+
+	# Find the average difference in angle from point to point
+	avgDiffTheta = 0
+	avgDiffCount = 0
+	for i in range( 1, len( scanData[0] ) ):
+		avgDiffTheta = avgDiffTheta + ( scanData[0][i] - scanData[0][i-1] )
+		avgDiffCount = avgDiffCount + 1
+	avgDiffTheta = avgDiffTheta / avgDiffCount + inc / 2
+
+	# Loop through the length of the scan data
 	for i in range( len( scanData[0] ) - 1 ):
+		# Only keep looking for beacons if there aren't the three needed
 		if( beaconsFound < 3 ):
-			if( abs( scanData[0][i] - scanData[0][i + 1] ) < .05 ):
+			# Check to see if the angle between two points is less than the average
+			# Indicates that these are two points on one beacon rather than on two beacons
+			if( abs( scanData[0][i] - scanData[0][i + 1] ) < avgDiffTheta ):
 				if( started == 0 ):
 					beaconStart = i
 					started = 1
+			# If the angle between points becomes larger than the average, a beacon has been found or there was erroneous data
 			else:
+				# If a beacon has already been started, then the larger-than-average distance indicates that the end of the beacon has been found
 				if( started == 1 ):
 					beaconEnd = i
 					started = 0
+					# The threshold value for the number of points needed to make a beaco is currently set to 10
+					# Set the distance and angle of the beacon in the 2D array of beacon data
 					if( ( beaconEnd - beaconStart ) >= 10 ):
 						beaconData[0].append( scanData[0][ beaconStart + int( floor( ( beaconEnd - beaconStart ) / 2 ) ) ] )
 						beaconData[1].append( scanData[1][ beaconStart + int( floor( ( beaconEnd - beaconStart ) / 2 ) ) ] )
 						beaconsFound = beaconsFound + 1
-
-#	beaconData[0] = [ 3.938, 3.593, 3.145 ]
-#	beaconData[1] = [ .284, .2225, .2049 ]
+	# Print some outputs
+	print( avgDiffTheta )
 	print( beaconData[0] )
 	print( beaconData[1] )
 
+# For explanation of workings, see http://jwilson.coe.uga.edu/EMAT6680Fa05/Schultz/6690/Barn_GPS/Barn_GPS.html
+# This function corresponds to the Simulink module created by Matthew Budde
 def calcPosition( beaconX, beaconY, beaconData ):
 	if( len( beaconData[0] ) == 3 ):
 		beaconDataTranslated = []
@@ -169,6 +213,7 @@ def calcPosition( beaconX, beaconY, beaconData ):
 def calcAngle():	
 	print( "ANGLE" )
 
+# Set up listener to detect a new LiDAR scan and execute the callback function
 def listener():
 	rospy.init_node( 'listener', anonymous=True )
 	rospy.Subscriber( "/scan", sensor_msgs.msg.LaserScan, callback )
