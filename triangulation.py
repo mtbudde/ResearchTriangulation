@@ -1,3 +1,4 @@
+import rospy
 import roslib
 from std_msgs.msg import String
 import sensor_msgs.msg
