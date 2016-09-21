@@ -6,7 +6,7 @@ from math import *
 
 # Threshold for determining which data points correspond to beacons
 global THRESHOLD
-THRESHOLD = 15
+THRESHOLD = 12
 
 # These will later be initialized as 2D arrays
 global scanData
@@ -28,6 +28,9 @@ numberScans = 0
 
 global missedScans
 missedScans = 0
+
+global coordinates
+#coordinates = []
 
 # Callback function for a LiDAR scan
 def callback(data):
@@ -56,6 +59,8 @@ def callback(data):
 		print( numberScans )
 		print( missedScans )
 	scanCount = ( scanCount + 1 ) % 3 # Roll the scan count around
+#	print coordinates
+#	return coordinates
 
 # Function to process the first scan - using two scans to get a suitable number of high-quality data points
 def firstScan( start, end, inc, ranges, intensities ):
@@ -230,30 +235,58 @@ def calcPosition( beaconX, beaconY, beaconData ):
 
 		d1 = sqrt( pow( options[0][0] - beaconX[2], 2 ) + pow( options[0][1] - beaconY[2], 2 ) )
 		d2 = sqrt( pow( options[1][0] - beaconX[2], 2 ) + pow( options[1][1] - beaconY[2], 2 ) )
+		global coordinates
 		if( abs( d1 - beaconData[1][2] ) < abs( d2 - beaconData[1][2] ) ):
 			coordinates = options[0]
 		else:
 			coordinates = options[1]
+		coordinates[0] = abs( coordinates[0] )
+		coordinates[1] = abs( coordinates[1] )
 
-		print( "POSITION" )
+#		print( "POSITION" )
 		print( coordinates )
-		print( "" )
-		print( options[0] )
-		print( options[1] )
+#		print( "" )
+#		print( options[0] )
+#		print( options[1] )
 	else:
 #		print( "NOT ENOUGH BEACONS FOUND" )
 		print( "" )
 		global missedScans
 		missedScans = missedScans + 1
+		
 
-def calcAngle():	
+def calcAngle():
+	truckAngle = 0
+	divisor = 3
+	global coordinates
+	print( coordinates[0] )
+	print( coordinates[1] )
+	if( len( beaconData[0] ) == 3 ):
+		for i in range(0, 2):
+			base = abs( atan( ( coordinates[1] - beaconY[i] ) / ( coordinates[0] - beaconX[i] ) ) )
+			xCond = coordinates[0] - beaconX[i]
+			yCond = coordinates[1] - beaconY[i]
+			if xCond > 0 and yCond > 0:
+				truckAngle = truckAngle + ( pi - beaconData[0][i] + base )
+			elif xCond <=0 and yCond > 0:
+				truckAngle = truckAngle + ( 2 * pi - beaconData[0][i] - base )
+			elif xCond <=0 and yCond <= 0:
+				truckAngle = truckAngle + ( 2 * pi - beaconData[0][i] + base )
+			elif xCond > 0 and yCond <= 0:
+				truckAngle = truckAngle + ( pi - beaconData[0][i] - base )
+			else:
+				divisor = divisor - 1
+
+	truckAngle = truckAngle / divisor
 	print( "ANGLE" )
+	print( truckAngle )
 
 # Set up listener to detect a new LiDAR scan and execute the callback function
 def listener():
 	rospy.init_node( 'listener', anonymous=True )
 	rospy.Subscriber( "/scan", sensor_msgs.msg.LaserScan, callback )
 	rospy.spin()
+	return coordinates
 
 if __name__ == '__main__':
 	listener()
