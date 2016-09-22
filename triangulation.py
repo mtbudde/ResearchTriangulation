@@ -16,7 +16,7 @@ global scanData1
 global beaconX
 beaconX = [ 0, 0, 0 ]
 global beaconY
-beaconY = [ .6, .3, 0 ]
+beaconY = [ .5, .3, .1 ]
 
 # Used in ensuring two scans are used for processing
 global scanCount
@@ -128,18 +128,31 @@ def processScan( start, end, inc, ranges, intensities, scanData1 ):
 # Locate the beacons in the scan data
 # Looking for clumped together points in the data
 def findBeacons( scanData, inc ):
-#	print( "BEACONS" )
-	beaconsFound = 0
+	# State and Counter Variable Setup
+	i = 1
+	j = 0
+	beacCount = 0
+	higher = 0
 	started = 0
-
-	# Make a 2D array to contain distance and angles to each beacon
-	# beaconData[0] = ANGLES
-	# beaconData[1] = DISTANCES
+	beginning = 0
+	end = 0;
+	index = 0;
+	# End Setup
+	
+	# Matrix Setup
+	# peaks = [ang][dist][count]
+	peaks = []
+	peaks.append( [] )
+	peaks.append( [] )
+	peaks.append( [] )
+	
+	# beaconData = [ang][dist]
 	global beaconData
 	beaconData = []
 	beaconData.append( [] )
 	beaconData.append( [] )
-
+	# End Setup
+	
 	# Find the average difference in angle from point to point
 	avgDiffTheta = 0
 	avgDist = 0
@@ -148,34 +161,41 @@ def findBeacons( scanData, inc ):
 		avgDist = avgDist + scanData[1][i]
 	avgDiffTheta = avgDiffTheta / ( len( scanData[0] ) - 1 )
 	avgDist = avgDist / ( len( scanData[1] ) - 1 ) / 2
-
-	# Loop through the length of the scan data
-	for i in range( len( scanData[0] ) - 1 ):
-		# Only keep looking for beacons if there aren't the three needed
-		if( beaconsFound < 3 ):
-			# Check to see if the angle between two points is less than the average
-			# Indicates that these are two points on one beacon rather than on two beacons
-			if( abs( scanData[0][i] - scanData[0][i + 1] ) < avgDiffTheta and scanData[1][i] < avgDist ):
-				if( started == 0 ):
-					beaconStart = i
-					started = 1
-			# If the angle between points becomes larger than the average, a beacon has been found or there was erroneous data
-			else:
-				# If a beacon has already been started, then the larger-than-average distance indicates that the end of the beacon has been found
-				if( started == 1 ):
-					beaconEnd = i
-					started = 0
-					# The threshold value for the number of points needed to make a beaco is currently set to 10
-					# Set the distance and angle of the beacon in the 2D array of beacon data
-					if( ( beaconEnd - beaconStart ) >= 3 ):
-						beaconData[0].append( scanData[0][ beaconStart + int( floor( ( beaconEnd - beaconStart ) / 2 ) ) ] )
-						beaconData[1].append( scanData[1][ beaconStart + int( floor( ( beaconEnd - beaconStart ) / 2 ) ) ] )
-						beaconsFound = beaconsFound + 1
-	# Print some outputs
-#	print( avgDiffTheta )
-#	print( avgDist )
-#	print( beaconData[0] )
-#	print( beaconData[1] )
+	# Average distance is found
+	# Find all peaks in the scan data
+	i = 1
+	while( i < len( scanData[0] ) ):
+		if( ( scanData[0][i] - scanData[0][i-1] ) < avgDiffTheta ):
+			if( started != 1 ):
+				started = 1
+				beginning = i
+		else:
+			if( started == 1 ):
+				end = i - 1
+				started = 0
+				index = int(( end - beginning ) / 2) + beginning
+				peaks[0].append( scanData[0][index] )
+				peaks[1].append( scanData[1][index] )
+				peaks[2].append( end - beginning )
+		i = i + 1
+	# All peaks found
+	print( "Peaks Found:" )
+	print( peaks[0] )
+	print( peaks[1] )
+	print( peaks[2] )
+	print()
+	# Find the three highest peaks in the list of peaks and assign them to the beacons
+	peaks = zip( *peaks )
+	peaks = sorted( peaks, key=lambda l:l[2] )
+	peaks = zip( *peaks )
+	
+	beaconData[0].append( peaks[0][0] )
+	beaconData[1].append( peaks[1][0] )
+	beaconData[0].append( peaks[0][1] )
+	beaconData[1].append( peaks[1][1] )
+	beaconData[0].append( peaks[0][2] )
+	beaconData[1].append( peaks[1][2] )
+	# All data assigned
 
 # For explanation of workings, see http://jwilson.coe.uga.edu/EMAT6680Fa05/Schultz/6690/Barn_GPS/Barn_GPS.html
 # This function corresponds to the Simulink module created by Matthew Budde
