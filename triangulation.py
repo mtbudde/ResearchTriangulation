@@ -6,7 +6,7 @@ from math import *
 
 # Threshold for determining which data points correspond to beacons
 global THRESHOLD
-THRESHOLD = 9
+THRESHOLD = 11
 
 # These will later be initialized as 2D arrays
 global scanData
@@ -14,12 +14,12 @@ global scanData1
 
 # Beacon positions
 global beaconX
-beaconX = [ 0, 0, 0 ]
+beaconX = [ 0.04, 0.04, 0.04 ]
 global beaconY
 beaconY = [ .5, .3, .1 ]
 global beaconWidth
 beaconWidth = .05
-widthThreshold = .05
+widthThreshold = .03
 
 # Used in ensuring two scans are used for processing
 global scanCount
@@ -43,6 +43,10 @@ def callback(data):
 	angleInc = data.angle_increment
 	ranges = data.ranges
 	intensities = data.intensities
+
+	print( "ANGLE INCREMENT" )
+	print angleInc
+	print("")
 
 	# Use these two global variables
 	global scanCount
@@ -202,12 +206,18 @@ def findBeacons( scanData, inc ):
 				strength = strength / ( end - beginning )
 				measuredWidth = scanData[1][index] * ( scanData[0][end] - scanData[0][beginning] )
 				if( scanData[1][index] < 1 and ( ( measuredWidth > ( beaconWidth - widthThreshold ) ) and ( measuredWidth < ( beaconWidth + widthThreshold ) ) ) ):
+					print( measuredWidth )
 					peaks[0].append( scanData[0][index] )
 					peaks[1].append( scanData[1][index] )
 					peaks[2].append( end - beginning )
 					peaks[3].append( strength )
 				strength = 0
 		i = i + 1
+
+	# Determine the max/min angle between all three beacons
+#	beaconBase = sqrt( abs( beaconY[0] - beaconY[2] ) / abs( beaconX[0] - beaconX[2] ) )
+#	maxTheta = 2 * arctan( ( beaconBase / 2 ) / avgDist )
+
 	# All peaks found
 	if( len( peaks[0] ) > 0 ):
 #		print( "Peaks Found:" )
@@ -220,6 +230,8 @@ def findBeacons( scanData, inc ):
 		peaks = zip( *peaks )
 		peaks = sorted( peaks, key=lambda l:l[2], reverse=True )
 		peaks = zip( *peaks )
+#		while( i < len( peaks[0] - 2 ):
+#			if(
 		
 		print( "Sorted Peaks:" )
 		print( peaks[0] )
