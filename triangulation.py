@@ -161,6 +161,9 @@ def findBeacons( scanData, inc ):
 		avgDist = avgDist + scanData[1][i]
 	avgDiffTheta = avgDiffTheta / ( len( scanData[0] ) - 1 )
 	avgDist = avgDist / ( len( scanData[1] ) - 1 ) / 2
+	print( "Average distance: ")
+	print( avgDist )
+	print()
 	# Average distance is found
 	# Find all peaks in the scan data
 	i = 1
@@ -174,9 +177,10 @@ def findBeacons( scanData, inc ):
 				end = i - 1
 				started = 0
 				index = int(( end - beginning ) / 2) + beginning
-				peaks[0].append( scanData[0][index] )
-				peaks[1].append( scanData[1][index] )
-				peaks[2].append( end - beginning )
+				if( scanData[1][index] < avgDist ):
+					peaks[0].append( scanData[0][index] )
+					peaks[1].append( scanData[1][index] )
+					peaks[2].append( end - beginning )
 		i = i + 1
 	# All peaks found
 	print( "Peaks Found:" )
@@ -186,15 +190,33 @@ def findBeacons( scanData, inc ):
 	print()
 	# Find the three highest peaks in the list of peaks and assign them to the beacons
 	peaks = zip( *peaks )
-	peaks = sorted( peaks, key=lambda l:l[2] )
+	peaks = sorted( peaks, key=lambda l:l[2], reverse=True )
 	peaks = zip( *peaks )
 	
+	print( "Sorted Peaks:" )
+	print( peaks[0] )
+	print( peaks[1] )
+	print( peaks[2] )
+	print()
+
 	beaconData[0].append( peaks[0][0] )
 	beaconData[1].append( peaks[1][0] )
 	beaconData[0].append( peaks[0][1] )
 	beaconData[1].append( peaks[1][1] )
 	beaconData[0].append( peaks[0][2] )
 	beaconData[1].append( peaks[1][2] )
+	print( "Beacon Data:" )
+	print( beaconData[0] )
+	print( beaconData[1] )
+	print()
+
+	beaconData = zip( *beaconData )
+	beaconData = sorted( beaconData, key=lambda l:l[0] )
+	beaconData = zip( *beaconData )
+	print ( "Beacon Data (Sorted) " )
+	print( beaconData[0] )
+	print( beaconData[1] )
+	print()
 	# All data assigned
 
 # For explanation of workings, see http://jwilson.coe.uga.edu/EMAT6680Fa05/Schultz/6690/Barn_GPS/Barn_GPS.html
