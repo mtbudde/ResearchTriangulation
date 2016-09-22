@@ -72,15 +72,18 @@ def firstScan( start, end, inc, ranges, intensities ):
 	scanData1 = []
 	scanData1.append( [] )
 	scanData1.append( [] )
+	scanData1.append( [] )
 	# Add all scan data to the global 2D array
 	for i in range( len( intensities ) ):
 		if intensities[i] > THRESHOLD:
 			scanData1[0].append( start + ( i * inc ) )
 			scanData1[1].append( ranges[i] )
+			scanData1[2].append( intensities[i] )
 
 # Function to process the second scan - using three scans
 def secondScan( start, end, inc, ranges, intensities, scanData1 ):
 	scanTemp = []
+	scanTemp.append( [] )
 	scanTemp.append( [] )
 	scanTemp.append( [] )
 	# Temporarily store the scan data
@@ -88,7 +91,8 @@ def secondScan( start, end, inc, ranges, intensities, scanData1 ):
 		if intensities[i] > THRESHOLD:
 			scanTemp[0].append( start + ( i * inc ) )
 			scanTemp[1].append( ranges[i] )
-	
+			scanTemp[2].append( intensities[i] )	
+
 	# Insert the temporary scan into the global array
 	k = 0
 	l = 0
@@ -96,6 +100,7 @@ def secondScan( start, end, inc, ranges, intensities, scanData1 ):
 		if( scanTemp[0][k] < scanData1[0][1] ):
 			scanData1[0].insert( 1, scanTemp[0][k] )
 			scanData1[1].insert( 1, scanTemp[1][k] )
+			scanData1[2].insert( 1, scanTemp[2][k] )
 			k = k + 1
 		else:
 			l = l + 1
@@ -107,11 +112,14 @@ def processScan( start, end, inc, ranges, intensities, scanData1 ):
 	scanData = []
 	scanData.append( [] )
 	scanData.append( [] )
+	scanData.append( [] )
+
 	# Add the second scan in to the new array
 	for i in range( len( intensities ) ):
 		if intensities[i] > THRESHOLD:
 			scanData[0].append( start + ( i * inc ) )
 			scanData[1].append( ranges[i] )
+			scanData[2].append( intensities[i] )
 
 	# Insert the first scan into the master array point-by-point in the appropriate positions
 	k = 0
@@ -120,6 +128,7 @@ def processScan( start, end, inc, ranges, intensities, scanData1 ):
 		if( scanData1[0][k] < scanData[0][l] ):
 			scanData[0].insert( l, scanData1[0][k] )
 			scanData[1].insert( l, scanData1[1][k] )
+			scanData[2].insert( 1, scanData1[2][k] )
 			k = k + 1
 		else:
 			l = l + 1
@@ -151,6 +160,7 @@ def findBeacons( scanData, inc ):
 	peaks.append( [] )
 	peaks.append( [] )
 	peaks.append( [] )
+	peaks.append( [] )
 	
 	# beaconData = [ang][dist]
 	global beaconData
@@ -177,29 +187,35 @@ def findBeacons( scanData, inc ):
 
 	# Find all peaks in the scan data
 	i = 1
+	strength = 0
 	while( i < len( scanData[0] ) ):
 		if( ( scanData[0][i] - scanData[0][i-1] ) < avgDiffTheta ):
 			if( started != 1 ):
 				started = 1
 				beginning = i - 1
+			strength += scanData[2][i-1]
 		else:
 			if( started == 1 ):
 				end = i - 1
 				started = 0
 				index = int(( end - beginning ) / 2) + beginning
+				strength = strength / ( end - beginning )
 				measuredWidth = scanData[1][index] * ( scanData[0][end] - scanData[0][beginning] )
 				if( scanData[1][index] < 1 and ( ( measuredWidth > ( beaconWidth - widthThreshold ) ) and ( measuredWidth < ( beaconWidth + widthThreshold ) ) ) ):
 					peaks[0].append( scanData[0][index] )
 					peaks[1].append( scanData[1][index] )
 					peaks[2].append( end - beginning )
+					peaks[3].append( strength )
+				strength = 0
 		i = i + 1
 	# All peaks found
 	if( len( peaks[0] ) > 0 ):
-		print( "Peaks Found:" )
-		print( peaks[0] )
-		print( peaks[1] )
-		print( peaks[2] )
-		print("")
+#		print( "Peaks Found:" )
+#		print( peaks[0] )
+#		print( peaks[1] )
+#		print( peaks[2] )
+#		print( peaks[3] )
+#		print("")
 		# Find the three highest peaks in the list of peaks and assign them to the beacons
 		peaks = zip( *peaks )
 		peaks = sorted( peaks, key=lambda l:l[2], reverse=True )
@@ -209,6 +225,7 @@ def findBeacons( scanData, inc ):
 		print( peaks[0] )
 		print( peaks[1] )
 		print( peaks[2] )
+		print( peaks[3] )
 		print("")
 
 	if( len( peaks[0] ) >= 3 ):
@@ -218,10 +235,10 @@ def findBeacons( scanData, inc ):
 		beaconData[1].append( peaks[1][1] )
 		beaconData[0].append( peaks[0][2] )
 		beaconData[1].append( peaks[1][2] )
-		print( "Beacon Data:" )
-		print( beaconData[0] )
-		print( beaconData[1] )
-		print("")
+#		print( "Beacon Data:" )
+#		print( beaconData[0] )
+#		print( beaconData[1] )
+#		print("")
 
 		beaconData = zip( *beaconData )
 		beaconData = sorted( beaconData, key=lambda l:l[0] )
