@@ -6,7 +6,7 @@ from math import *
 
 # Threshold for determining which data points correspond to beacons
 global THRESHOLD
-THRESHOLD = 11
+THRESHOLD = 0
 
 # These will later be initialized as 2D arrays
 global scanData
@@ -182,11 +182,11 @@ def findBeacons( scanData, inc ):
 	avgDist = avgDist / ( len( scanData[1] ) )
 	avgThresh = avgThresh /  len( scanData[2] )
 
-	print( "Average Threshold: " )
-	print( avgThresh )
+#	print( "Average Threshold: " )
+#	print( avgThresh )
 
-	print( "Average distance: ")
-	print( avgDist )
+#	print( "Average distance: ")
+#	print( avgDist )
 #	print("")
 #	print( "Average Angle: " )
 #	print( avgDiffTheta )
@@ -197,7 +197,7 @@ def findBeacons( scanData, inc ):
 	i = 1
 	strength = 0
 	while( i < len( scanData[0] ) ):
-		if( abs( scanData[0][i] - scanData[0][i-1] ) < avgDiffTheta ):
+		if( abs( scanData[0][i] - scanData[0][i-1] ) < avgDiffTheta and scanData[2][i] > avgThresh ):
 			if( started != 1 ):
 				started = 1
 				beginning = i - 1
@@ -331,7 +331,7 @@ def calcPosition( beaconX, beaconY, beaconData ):
 
 #		print( "POSITION" )
 		print( coordinates )
-#		print( "" )
+		print( "" )
 #		print( options[0] )
 #		print( options[1] )
 	else:
@@ -345,8 +345,8 @@ def calcAngle():
 	truckAngle = 0
 	divisor = 3
 	global coordinates
-	print( coordinates[0] )
-	print( coordinates[1] )
+#	print( coordinates[0] )
+#	print( coordinates[1] )
 	if( len( beaconData[0] ) == 3 ):
 		for i in range(0, 2):
 			base = abs( atan( ( coordinates[1] - beaconY[i] ) / ( coordinates[0] - beaconX[i] ) ) )
