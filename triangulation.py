@@ -14,12 +14,12 @@ global scanData1
 
 # Beacon positions
 global beaconX
-beaconX = [ 0.04, 0.04, 0.04 ]
+beaconX = [ 0, 0, 0 ]
 global beaconY
 beaconY = [ .5, .3, .1 ]
 global beaconWidth
 beaconWidth = .05
-widthThreshold = .03
+widthThreshold = 1
 
 # Used in ensuring two scans are used for processing
 global scanCount
@@ -44,10 +44,6 @@ def callback(data):
 	ranges = data.ranges
 	intensities = data.intensities
 
-	print( "ANGLE INCREMENT" )
-	print angleInc
-	print("")
-
 	# Use these two global variables
 	global scanCount
 	global numberScans
@@ -63,8 +59,8 @@ def callback(data):
 		calcPosition( beaconX, beaconY, beaconData )
 		calcAngle( )
 		numberScans = numberScans + 1
-		print( numberScans )
-		print( missedScans )
+#		print( numberScans )
+#		print( missedScans )
 	scanCount = ( scanCount + 1 ) % 3 # Roll the scan count around
 #	print coordinates
 #	return coordinates
@@ -125,6 +121,8 @@ def processScan( start, end, inc, ranges, intensities, scanData1 ):
 			scanData[1].append( ranges[i] )
 			scanData[2].append( intensities[i] )
 
+#	print( scanData[0] )
+
 	# Insert the first scan into the master array point-by-point in the appropriate positions
 	k = 0
 	l = 0
@@ -137,9 +135,10 @@ def processScan( start, end, inc, ranges, intensities, scanData1 ):
 		else:
 			l = l + 1
 
-	# Print some output
-	#print( scanData[0] )
-	#print( scanData[1] )
+#	for i in range( len( scanData[0] ) ):
+#		if( scanData[0][i] > 0 ):
+#			scanData[0][i] = pi - scanData[0][i]
+#	print( scanData )
 
 # Locate the beacons in the scan data
 # Looking for clumped together points in the data
@@ -155,9 +154,6 @@ def findBeacons( scanData, inc ):
 	index = 0;
 	# End Setup
 
-#	print( scanData[0] )
-#	print( scanData[1] )
-	
 	# Matrix Setup
 	# peaks = [ang][dist][count]
 	peaks = []
@@ -173,27 +169,35 @@ def findBeacons( scanData, inc ):
 	beaconData.append( [] )
 	# End Setup
 	
-	# Find the average difference in angle from point to point
+	# Find the average difference in angle from point to point, the average
+	# threshold value, and the average distance of points from the LiDAR
 	avgDiffTheta = 0
 	avgDist = 0
+	avgThresh = 0
 	for i in range( 1, len( scanData[0] ) ):
-		avgDiffTheta = avgDiffTheta + ( scanData[0][i] - scanData[0][i-1] )
+		avgDiffTheta = avgDiffTheta + abs( scanData[0][i] - scanData[0][i-1] )
 		avgDist = avgDist + scanData[1][i]
+		avgThresh = avgThresh + scanData[2][i]
 	avgDiffTheta = avgDiffTheta / ( len( scanData[0] ) - 1 )
-	avgDist = avgDist / ( len( scanData[1] ) - 1 ) / 2
+	avgDist = avgDist / ( len( scanData[1] ) )
+	avgThresh = avgThresh /  len( scanData[2] )
+
+	print( "Average Threshold: " )
+	print( avgThresh )
+
 	print( "Average distance: ")
 	print( avgDist )
-	print("")
-	print( "Average Angle: " )
-	print( avgDiffTheta )
-	print("")
+#	print("")
+#	print( "Average Angle: " )
+#	print( avgDiffTheta )
+#	print("")
 	# Average distance is found
 
 	# Find all peaks in the scan data
 	i = 1
 	strength = 0
 	while( i < len( scanData[0] ) ):
-		if( ( scanData[0][i] - scanData[0][i-1] ) < avgDiffTheta ):
+		if( abs( scanData[0][i] - scanData[0][i-1] ) < avgDiffTheta ):
 			if( started != 1 ):
 				started = 1
 				beginning = i - 1
@@ -206,7 +210,8 @@ def findBeacons( scanData, inc ):
 				strength = strength / ( end - beginning )
 				measuredWidth = scanData[1][index] * ( scanData[0][end] - scanData[0][beginning] )
 				if( scanData[1][index] < 1 and ( ( measuredWidth > ( beaconWidth - widthThreshold ) ) and ( measuredWidth < ( beaconWidth + widthThreshold ) ) ) ):
-					print( measuredWidth )
+#					print( "Measured Width: " )
+#					print( measuredWidth )
 					peaks[0].append( scanData[0][index] )
 					peaks[1].append( scanData[1][index] )
 					peaks[2].append( end - beginning )
@@ -215,23 +220,24 @@ def findBeacons( scanData, inc ):
 		i = i + 1
 
 	# Determine the max/min angle between all three beacons
-#	beaconBase = sqrt( abs( beaconY[0] - beaconY[2] ) / abs( beaconX[0] - beaconX[2] ) )
-#	maxTheta = 2 * arctan( ( beaconBase / 2 ) / avgDist )
+	xdist = abs( beaconX[0] - beaconX[2] )
+	ydist = abs( beaconY[0] - beaconY[2] )
+
+	# Avoid the divide by zero error, make sure both values are not zero before calculation
+	# If one is zero, the sum of the two will be the distance
+	if( xdist != 0 and ydist != 0 ):
+		beaconBase = sqrt( abs( beaconY[0] - beaconY[2] ) / abs( beaconX[0] - beaconX[2] ) )
+	else:
+		beaconBase = xdist + ydist
+	maxTheta = atan( beaconBase / avgDist )
 
 	# All peaks found
 	if( len( peaks[0] ) > 0 ):
-#		print( "Peaks Found:" )
-#		print( peaks[0] )
-#		print( peaks[1] )
-#		print( peaks[2] )
-#		print( peaks[3] )
-#		print("")
+
 		# Find the three highest peaks in the list of peaks and assign them to the beacons
 		peaks = zip( *peaks )
-		peaks = sorted( peaks, key=lambda l:l[2], reverse=True )
+		peaks = sorted( peaks, key=lambda l:l[3], reverse=True )
 		peaks = zip( *peaks )
-#		while( i < len( peaks[0] - 2 ):
-#			if(
 		
 		print( "Sorted Peaks:" )
 		print( peaks[0] )
@@ -247,10 +253,6 @@ def findBeacons( scanData, inc ):
 		beaconData[1].append( peaks[1][1] )
 		beaconData[0].append( peaks[0][2] )
 		beaconData[1].append( peaks[1][2] )
-#		print( "Beacon Data:" )
-#		print( beaconData[0] )
-#		print( beaconData[1] )
-#		print("")
 
 		beaconData = zip( *beaconData )
 		beaconData = sorted( beaconData, key=lambda l:l[0] )
@@ -362,8 +364,8 @@ def calcAngle():
 				divisor = divisor - 1
 
 	truckAngle = truckAngle / divisor
-	print( "ANGLE" )
-	print( truckAngle )
+#	print( "ANGLE" )
+#	print( truckAngle )
 
 # Set up listener to detect a new LiDAR scan and execute the callback function
 def listener():
